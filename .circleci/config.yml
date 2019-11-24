@@ -1,5 +1,25 @@
 version: 2
 jobs:
+  deploy:
+    environment:
+      IMAGE_NAME: lesspion/pokedex_py
+    docker:
+      - image: circleci/buildpack-deps:stretch
+    steps:
+      - checkout
+      - setup_remote_docker
+      - run:
+          name: Build Docker image
+          command: docker build -t $IMAGE_NAME:latest .
+      - run:
+          name: Publish Docker Image to Docker Hub
+          command: |
+            echo "$DOCKERHUB_TOKEN" | docker login -u lesspion --password-stdin
+            docker push $IMAGE_NAME:latest
+      - run:
+          name: Deploy Master to Heroku
+          command: |
+            git push https://heroku:$HEROKU_API_KEY@git.heroku.com/$HEROKU_APP_NAME.git master
   launch_tests:
     docker:
       - image: circleci/python:3.6.1
@@ -36,6 +56,11 @@ workflows:
   test_branch:
     jobs:
       - launch_tests:
+          filters:
+            branches:
+              ignore:
+                - master
+      - deploy:
           filters:
             branches:
               ignore:
